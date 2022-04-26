@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiler</title>
+</head>
+<body>
+    <div id="app">
+        <div>
+            <p>
+              {{name}} - {{shortName}}
+            </p>
+            <p>
+              {{notice}}
+            </p>
+          </div>
+    </div>
+</body>
+
+<script>
+    // 1 拿到模板
+    let tmpNode = document.querySelector('#app');
+    console.log(tmpNode);
+    // cloneNode 方法创建节点的拷贝，并返回该副本。
+    // cloneNode 方法克隆所有属性以及它们的值。
+    // 克隆所有后代，请把 deep 参数设置 true，否则设置为 false。
+    let cloneTemNode = tmpNode.cloneNode(true);
+    console.log(cloneTemNode);
+
+    let data = {
+        name: '张三',
+        shortName: 'zhangsan',
+        notice: '中国人不骗中国人'
+    }
+
+    const regExp = /\{\{(.+?)\}\}/g
+
+    function compiler(cloneTemNode, data) {
+        console.log(cloneTemNode.childNodes);
+        let childNodes = cloneTemNode.childNodes;
+
+        for(let i = 0; i < childNodes.length; i++) {
+            if(childNodes[i].nodeType === 3) {
+                let nodeValue = childNodes[i].nodeValue
+                // 替换{{}}中的内容
+                nodeValue = nodeValue.replace(regExp, function(_, newValue) {
+                    console.log(newValue);
+                    const dataKey = newValue.trim();
+                    return data[dataKey]
+                })
+                childNodes[i].nodeValue = nodeValue;
+                console.log(childNodes[i]);
+            } else if(childNodes[i].nodeType === 1) {
+                compiler(childNodes[i], data);
+            }
+        }
+    }
+
+    compiler(cloneTemNode, data);
+    
+    // 替换解析好的cloneTemNode到真实DOM上
+    tmpNode.parentNode.replaceChild(cloneTemNode, tmpNode)
+</script>
+</html>

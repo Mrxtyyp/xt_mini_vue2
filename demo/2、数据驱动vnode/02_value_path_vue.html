@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Vue</title>
+</head>
+<body>
+    <div id="app">
+        <div>
+            <p>
+              {{name}} - {{shortName}}
+            </p>
+            <p>
+              {{notice}}
+            </p>
+            <p>做点什么呢？</p>
+            <ul>
+                <li>{{doing.eat}}</li>
+                <li>{{doing.drink}}</li>
+            </ul>
+          </div>
+    </div>
+</body>
+
+<script>
+    function SimpleVue(options) {
+        this._data = options.data;
+        this.$el = document.querySelector(options.el);
+        this.render();
+    }
+    SimpleVue.prototype.render = function() {
+        this.compiler()
+    }
+
+    SimpleVue.prototype.compiler = function() {
+        let cloneTempNode = this.$el.cloneNode(true);
+        compiler(cloneTempNode, this._data)
+        this.update(cloneTempNode)
+    }
+
+    SimpleVue.prototype.update = function(node) {
+        // 替换解析好的cloneTemNode到真实DOM上
+        this.$el.parentNode.replaceChild(node, this.$el)
+    }
+
+    const regExp = /\{\{(.+?)\}\}/g
+
+    function compiler(cloneTemNode, data) {
+        let childNodes = cloneTemNode.childNodes;
+        for(let i = 0; i < childNodes.length; i++) {
+            if(childNodes[i].nodeType === 3) {
+                let nodeValue = childNodes[i].nodeValue
+                // 替换{{}}中的内容
+                nodeValue = nodeValue.replace(regExp, function(_, newValue) {
+                    const dataKey = newValue.trim();
+                    const value = getKeyValue(data, dataKey);
+                    return value
+                })
+                childNodes[i].nodeValue = nodeValue;
+            } else if(childNodes[i].nodeType === 1) {
+                compiler(childNodes[i], data);
+            }
+        }
+    }
+
+    new SimpleVue({
+        el: '#app',
+        data: {
+            name: '张三',
+            shortName: 'zhangsan',
+            notice: '中国人不骗中国人',
+            doing: {
+                eat: '吃点',
+                drink: '喝点'
+            }
+        }
+    })
+
+    // 处理 data链式操作 x.x
+    function getKeyValue(data, keyStr) {
+        let keyStrArr = keyStr.split('.');
+        while(keyStrArr.length > 0) {
+            const key = keyStrArr.shift();
+            data = data[key]
+        }
+        return data;
+    }
+    // console.log(getKeyValue({
+    //         name: '张三',
+    //         shortName: 'zhangsan',
+    //         notice: '中国人不骗中国人',
+    //         doing: {
+    //             eat: '吃点',
+    //             drink: '喝点'
+    //         }
+    //     }, 'doing.eat'));
+</script>
+</html>

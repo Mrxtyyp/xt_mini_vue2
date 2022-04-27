@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Vue</title>
+</head>
+<body>
+    <div id="app">
+        <div>
+            <p>
+              {{name}} - {{shortName}}
+            </p>
+            <p>
+              {{notice}}
+            </p>
+            <p>做点什么呢？</p>
+            <ul>
+                <li>{{doing.eat}}</li>
+                <li>{{doing.drink}}</li>
+            </ul>
+          </div>
+    </div>
+</body>
+
+<script>
+    function SimpleVue(options) {
+        this._data = options.data;
+        observer(this._data);
+        this.$el = document.querySelector(options.el);
+        this.render();
+    }
+    SimpleVue.prototype.render = function() {
+        this.compiler()
+    }
+
+    SimpleVue.prototype.compiler = function() {
+        let ast = getVnode(this.$el);
+        // 将data中的数据映射到vnode中
+        combine(ast, this._data)
+        this.update(ast)
+    }
+
+    SimpleVue.prototype.update = function(node) {
+        // 替换解析好的ast到真实DOM上
+        const parseDom = parseVnode(node)
+        this.$el.parentNode.replaceChild(parseDom, this.$el)
+    }
+
+    const regExp = /\{\{(.+?)\}\}/g
+
+    function combine(ast, data) {
+        let childNodes = ast.children;
+        for(let i = 0; i < childNodes.length; i++) {
+            if(childNodes[i].type === 3) {
+                let nodeValue = childNodes[i].value
+                // 替换{{}}中的内容
+                nodeValue = nodeValue.replace(regExp, function(_, newValue) {
+                    const dataKey = newValue.trim();
+                    const value = getKeyValue(data, dataKey);
+                    return value
+                })
+                childNodes[i].value = nodeValue;
+            } else if(childNodes[i].type === 1) {
+                combine(childNodes[i], data);
+            }
+        }
+    }
+
+     // 处理 data链式操作 x.x
+    function getKeyValue(data, keyStr) {
+        let keyStrArr = keyStr.split('.');
+        while(keyStrArr.length > 0) {
+            const key = keyStrArr.shift();
+            data = data[key]
+        }
+        return data;
+    }
+
+    class VNode {
+      constructor(tag, data, value, type) {
+        this.tag = tag?.toLowerCase();
+        this.data = data;
+        this.value = value;
+        this.type = type;
+        this.children = [];
+      }
+
+      appendChild(vnode) {
+        this.children.push(vnode);
+      }
+    }
+
+    function attributesToObj(attrs) {
+        let obj = {};
+        for(let i = 0; i < attrs.length; i++) {
+            obj[attrs[i].name] = attrs[i].nodeValue
+        }
+        return obj;
+    }
+
+    // DOM 转 Vnode
+    function getVnode(ele) {
+        let _vnode;
+        if(ele.nodeType === 1) {
+            let attrs = attributesToObj(ele.attributes);
+            _vnode = new VNode(ele.nodeName, attrs, ele.nodeValue, ele.nodeType)
+            let children = ele.childNodes;
+            for(let i = 0; i < children.length; i++) {
+                _vnode.appendChild(getVnode(children[i]))
+            }
+        } else if(ele.nodeType === 3) {
+            _vnode = new VNode(undefined, undefined, ele.nodeValue, ele.nodeType);
+        }
+
+        return _vnode;
+    }
+
+    // Vnode 解析成 真实DOM
+    function parseVnode(node) {
+        let dom;
+        if(node.type === 1) {
+            dom = document.createElement(node.tag)
+            for(let key in node.data) {
+                dom.setAttribute(key, node.data[key])
+            }
+
+            for(let i = 0; i < node.children.length; i++) {
+                dom.appendChild(parseVnode(node.children[i]))
+            }
+        } else if(node.type === 3) {
+            dom = document.createTextNode(node.value)
+        }
+        return dom
+    }
+
+    const oldPrototype = Array.prototype;
+    const newArrPrototype = Object.create(oldPrototype);
+    ['push', 'pop', 'shift', 'unshift', 'reverse', 'sort', 'splice'].forEach(i => {
+        newArrPrototype[i] = function() {
+            console.log(`劫持了${i}方法`);
+            console.log(arguments);
+            for(let i = 0; i < arguments.length; i++) {
+                observer(arguments[i])
+            }
+            // 执行原数组中的原始方法
+            return oldPrototype[i].apply(this, arguments);
+        }
+    })
+
+    // 响应式对象数据
+    function observer(obj) {
+        if(typeof obj !== 'object' || obj === null) return;
+        let keys = Object.keys(obj);
+        for(let i = 0; i < keys.length; i++) {
+            // 判断是否是数组，响应化数组的每一项
+            // 但是存在问题：只能响应式数组的get和set,不能响应式数组的方法
+            // 解决办法重写数组的方法
+            let item = obj[keys[i]];
+            if(Array.isArray(item)) {
+                item.__proto__ = newArrPrototype;
+                for(let j = 0; j < item.length; j++) {
+                    observer(item[j])
+                }
+            } else {
+                defineReactive(obj, keys[i], item)
+            }
+        }
+    }
+
+    // 劫持target的属性key的set和get
+    function defineReactive(target, key, value) {
+        console.log(`对${key}属性响应式`);
+        Object.defineProperty(target, key, {
+            configurable: true,
+            enumerable: true,
+            get() {
+                console.log('get 啦', value);
+                return value;
+            },
+            set(val) {
+                if(value === val) return;
+                console.log('set 啦', value, val);
+                value = val;
+            }
+        })
+    }
+
+    let instance = new SimpleVue({
+        el: '#app',
+        data: {
+            name: '张三',
+            shortName: 'zhangsan',
+            notice: '中国人不骗中国人',
+            doing: {
+                eat: '吃点',
+                drink: '喝点'
+            },
+            arr: [
+                {id: 1, name: '一一一'},
+                {id: 2, name: '二二二'}
+            ]
+        }
+    })
+
+   
+</script>
+</html>

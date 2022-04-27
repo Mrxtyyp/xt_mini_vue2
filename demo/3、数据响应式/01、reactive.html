@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive Data</title>
+</head>
+<body>
+    
+</body>
+<script>
+    let obj = {
+        a: 1,
+        b: 2,
+        c: [
+            {id: 1, name: '一一一'},
+            {id: 2, name: '二二二'}
+        ]
+    }
+
+    // Object.defineProperty(obj, 'a', {
+    //     configurable: true,
+    //     enumerable: true,
+    //     get() {
+    //         console.log('get 啦');
+    //     },
+    //     set(val) {
+    //         console.log('set 啦');
+    //     }
+    // })
+    // obj.a = 3;
+    // console.log(obj.a);
+
+    const oldPrototype = Array.prototype;
+    const newArrPrototype = Object.create(oldPrototype);
+    ['push', 'pop', 'shift', 'unshift', 'reverse', 'sort', 'splice'].forEach(i => {
+        newArrPrototype[i] = function() {
+            console.log(`劫持了${i}方法`);
+            console.log(arguments);
+            for(let i = 0; i < arguments.length; i++) {
+                observer(arguments[i])
+            }
+            // 执行原数组中的原始方法
+            return oldPrototype[i].apply(this, arguments);
+        }
+    })
+
+    // let newArr = Object.create(newArrPrototype);
+    // newArr.push(0)
+
+    // 响应式对象数据
+    function observer(obj) {
+        if(typeof obj !== 'object' || obj === null) return;
+        let keys = Object.keys(obj);
+        for(let i = 0; i < keys.length; i++) {
+            // 判断是否是数组，响应化数组的每一项
+            // 但是存在问题：只能响应式数组的get和set,不能响应式数组的方法
+            // 解决办法重写数组的方法
+            let item = obj[keys[i]];
+            if(Array.isArray(item)) {
+                item.__proto__ = newArrPrototype;
+                for(let j = 0; j < item.length; j++) {
+                    observer(item[j])
+                }
+            } else {
+                defineReactive(obj, keys[i], item)
+            }
+        }
+    }
+
+    // 劫持target的属性key的set和get
+    function defineReactive(target, key, value) {
+        console.log(`对${key}属性响应式`);
+        Object.defineProperty(target, key, {
+            configurable: true,
+            enumerable: true,
+            get() {
+                console.log('get 啦', value);
+                return value;
+            },
+            set(val) {
+                if(value === val) return;
+                console.log('set 啦', value, val);
+                value = val;
+            }
+        })
+    }
+
+    observer(obj);
+
+</script>
+</html>

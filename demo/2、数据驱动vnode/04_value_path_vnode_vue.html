@@ -35,34 +35,93 @@
     }
 
     SimpleVue.prototype.compiler = function() {
-        let cloneTempNode = this.$el.cloneNode(true);
-        compiler(cloneTempNode, this._data)
-        this.update(cloneTempNode)
+        let ast = getVnode(this.$el);
+        // 将data中的数据映射到vnode中
+        combine(ast, this._data)
+        this.update(ast)
     }
 
     SimpleVue.prototype.update = function(node) {
-        // 替换解析好的cloneTemNode到真实DOM上
-        this.$el.parentNode.replaceChild(node, this.$el)
+        // 替换解析好的ast到真实DOM上
+        const parseDom = parseVnode(node)
+        this.$el.parentNode.replaceChild(parseDom, this.$el)
     }
 
     const regExp = /\{\{(.+?)\}\}/g
 
-    function compiler(cloneTemNode, data) {
-        let childNodes = cloneTemNode.childNodes;
+    function combine(ast, data) {
+        let childNodes = ast.children;
         for(let i = 0; i < childNodes.length; i++) {
-            if(childNodes[i].nodeType === 3) {
-                let nodeValue = childNodes[i].nodeValue
+            if(childNodes[i].type === 3) {
+                let nodeValue = childNodes[i].value
                 // 替换{{}}中的内容
                 nodeValue = nodeValue.replace(regExp, function(_, newValue) {
                     const dataKey = newValue.trim();
                     const value = getKeyValue(data, dataKey);
                     return value
                 })
-                childNodes[i].nodeValue = nodeValue;
-            } else if(childNodes[i].nodeType === 1) {
-                compiler(childNodes[i], data);
+                childNodes[i].value = nodeValue;
+            } else if(childNodes[i].type === 1) {
+                combine(childNodes[i], data);
             }
         }
+    }
+
+    class VNode {
+      constructor(tag, data, value, type) {
+        this.tag = tag?.toLowerCase();
+        this.data = data;
+        this.value = value;
+        this.type = type;
+        this.children = [];
+      }
+
+      appendChild(vnode) {
+        this.children.push(vnode);
+      }
+    }
+
+    function attributesToObj(attrs) {
+        let obj = {};
+        for(let i = 0; i < attrs.length; i++) {
+            obj[attrs[i].name] = attrs[i].nodeValue
+        }
+        return obj;
+    }
+
+    // DOM 转 Vnode
+    function getVnode(ele) {
+        let _vnode;
+        if(ele.nodeType === 1) {
+            let attrs = attributesToObj(ele.attributes);
+            _vnode = new VNode(ele.nodeName, attrs, ele.nodeValue, ele.nodeType)
+            let children = ele.childNodes;
+            for(let i = 0; i < children.length; i++) {
+                _vnode.appendChild(getVnode(children[i]))
+            }
+        } else if(ele.nodeType === 3) {
+            _vnode = new VNode(undefined, undefined, ele.nodeValue, ele.nodeType);
+        }
+
+        return _vnode;
+    }
+
+    // Vnode 解析成 真实DOM
+    function parseVnode(node) {
+        let dom;
+        if(node.type === 1) {
+            dom = document.createElement(node.tag)
+            for(let key in node.data) {
+                dom.setAttribute(key, node.data[key])
+            }
+
+            for(let i = 0; i < node.children.length; i++) {
+                dom.appendChild(parseVnode(node.children[i]))
+            }
+        } else if(node.type === 3) {
+            dom = document.createTextNode(node.value)
+        }
+        return dom
     }
 
     new SimpleVue({

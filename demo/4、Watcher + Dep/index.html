@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wacther + Dep</title>
+</head>
+
+<body>
+    <div id="app">
+        <div>
+            <p>
+                {{name}} - {{shortName}}
+            </p>
+            <p>
+                {{notice}}
+            </p>
+            <p>做点什么呢？</p>
+            <ul>
+                <li>{{doing.eat}}</li>
+                <li>{{doing.drink}}</li>
+            </ul>
+        </div>
+    </div>
+</body>
+<script src="./src/dep.js"></script>
+<script src="./src/watcher.js"></script>
+<script src="./src/vnode.js"></script>
+<script src="./src/compiler.js"></script>
+<script src="./src/vue.js"></script>
+<script src="./src/initData.js"></script>
+<script src="./src/initRender.js"></script>
+<script>
+    let instance = new SimpleVue({
+        el: '#app',
+        data: {
+            name: '张三',
+            shortName: 'zhangsan',
+            notice: '中国人不骗中国人',
+            doing: {
+                eat: '吃点',
+                drink: '喝点'
+            },
+            arr: [
+                {id: 1, name: '一一一'},
+                {id: 2, name: '二二二'}
+            ]
+        }
+    })
+</script>
+</html>
